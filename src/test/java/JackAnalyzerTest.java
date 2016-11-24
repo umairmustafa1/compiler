@@ -13,7 +13,12 @@ public class JackAnalyzerTest {
     }
 
     @Test
-    public void ArrayTest(){
+    public void arrayTest(){
         JackAnalyzer.main(new String[]{"D:\\Dropbox\\UChicago\\52011\\Software\\nand2tetris\\projects\\10\\ArrayTest"});
+    }
+
+    @Test
+    public void expressionLessSquareTest(){
+        JackAnalyzer.main(new String[]{"D:\\Dropbox\\UChicago\\52011\\Software\\nand2tetris\\projects\\10\\ExpressionLessSquare"});
     }
 }

@@ -33,6 +33,11 @@ public class JackTokenizer {
         lexicalElements.put(">",Element.SYMBOL);lexicalElements.put("=",Element.SYMBOL);lexicalElements.put("~",Element.SYMBOL);
     }*/
 
+    /**
+     * Tokenizes the input file into list of Tokens
+     * @param inputFilePath Path of input file
+     * @return List of Tokens
+     */
     public static List<Token> tokenize(Path inputFilePath){
 
         List<Token> tokens = new ArrayList<>();
@@ -52,11 +57,18 @@ public class JackTokenizer {
                 while(matcher.find()){
                     String token = matcher.group();
                     Element element;
+                    boolean isBinaryOperator = false;
+                    boolean isUnaryOperator = false;
 
                     if(token.matches(keywordPattern))
                         element = Element.KEYWORD;
-                    else if(token.matches(symbolPattern))
+                    else if(token.matches(symbolPattern)){
                         element = Element.SYMBOL;
+                        if(token.matches("[\\+\\-\\*\\/\\&\\|\\<\\>\\=]"))
+                            isBinaryOperator = true;
+                        else if (token.matches("[\\-\\~]"))
+                            isUnaryOperator = true;
+                    }
                     else if(token.matches(integerPattern))
                         element = Element.INTEGER_CONSTANT;
                     else if(token.matches(stringPattern)){
@@ -66,13 +78,47 @@ public class JackTokenizer {
                     else
                         element = Element.IDENTIFIER;
 
-                    tokens.add(new Token(token, element));
+                    tokens.add(new Token(token, element, isBinaryOperator, isUnaryOperator));
                 }
             }
         }catch (IOException ex) {
             System.out.println("No such file exists : " + inputFilePath);
         }
         return tokens;
+    }
+
+    /**
+     * Provides all the tokens in XML format for a given list of tokens
+     * @param tokens list of tokens
+     * @return String List of XML Tokens
+     */
+    public static List<String> getXMLTokens(List<Token> tokens){
+        List<String> xmlTokens = new ArrayList();
+        xmlTokens.add("<tokens>");
+        tokens.forEach(token -> xmlTokens.add(getXMLToken(token)));
+        xmlTokens.add("</tokens>");
+        return xmlTokens;
+    }
+
+    /**
+     * Generates XML form of the token
+     * @param token to be converted
+     * @return XML format of token
+     */
+    public static String getXMLToken(Token token){
+        String tokenType = token.getTokenType().getDescription();
+        String tokenStr = token.getToken();
+
+        if(tokenStr.equals("<"))
+            tokenStr = "&lt;";
+        else if (tokenStr.equals(">"))
+            tokenStr = "&gt;";
+        else if (tokenStr.equals("\""))
+            tokenStr = "&quot;";
+        else if (tokenStr.equals("&"))
+            tokenStr = "&amp;";
+
+        return ("<" + tokenType + "> " + tokenStr + " </" + tokenType + ">");
     }
 
     /**
@@ -88,6 +134,4 @@ public class JackTokenizer {
                 .filter(a -> !a.trim().isEmpty())
                 .map(a -> a.substring(0, a.contains("//") ? a.indexOf("//") : a.length()).trim());
     }
-
-
 }

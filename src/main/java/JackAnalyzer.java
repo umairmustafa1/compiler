@@ -3,12 +3,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class JackAnalyzer {
 
@@ -27,33 +23,16 @@ public class JackAnalyzer {
                     .collect(Collectors.toList());
 
                 for (Path inputFilePath : inputFilePaths) {
-
-                    List<String> finalOutput = new ArrayList();
-
-                    Path outputFilePath = inputFilePath.resolveSibling(inputFilePath.getFileName().toString()
+                    Path outputFilePathTokens = inputFilePath.resolveSibling(inputFilePath.getFileName().toString()
                             .substring(0,inputFilePath.getFileName().toString().lastIndexOf(".")) + "T.xml");
 
+                    Path outputFilePath = inputFilePath.resolveSibling(inputFilePath.getFileName().toString()
+                            .substring(0,inputFilePath.getFileName().toString().lastIndexOf(".")) + ".xml");
+
                     List<Token> tokens = JackTokenizer.tokenize(inputFilePath);
+                    Files.write(outputFilePathTokens, JackTokenizer.getXMLTokens(tokens), Charset.defaultCharset());//Output Tokens
+                    Files.write(outputFilePath, CompilationEngine.compileClass(tokens), Charset.defaultCharset());//Output Compiled XML
 
-                    finalOutput.add("<tokens>");
-                    tokens.forEach(token -> {
-                        String tokenType = token.getTokenType().getDescription();
-                        String tokenStr = token.getToken();
-
-                        if(tokenStr.equals("<"))
-                            tokenStr = "&lt;";
-                        else if (tokenStr.equals(">"))
-                            tokenStr = "&gt;";
-                        else if (tokenStr.equals("\""))
-                            tokenStr = "&quot;";
-                        else if (tokenStr.equals("&"))
-                            tokenStr = "&amp;";
-
-                        finalOutput.add("<" + tokenType + "> " + tokenStr + " </" + tokenType + ">");
-                    });
-                    finalOutput.add("</tokens>");
-
-                    Files.write(outputFilePath, finalOutput, Charset.defaultCharset());
                 }
             }catch(IOException ex){
                 System.out.println("No such directory exists : " + inputDirPath);
