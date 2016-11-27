@@ -1,48 +1,39 @@
 /**
- * Created by MuhammadUmair on 11/23/2016.
+ * Class to encapsulate parameters of a token
  */
 public class Token {
-    private String tokenStr;
-    private Element element;
-    private boolean isBinaryOperator;
-    private boolean isUnaryOperator;
+    private final String tokenStr;
+    private final Element element;
+    private final boolean isBinaryOperator;
+    private final boolean isUnaryOperator;
+    private final boolean isKeyWordConstant;
 
-    public Token(String tokenStr, Element element, boolean isBinaryOperator, boolean isUnaryOperator) {
+    public Token(String tokenStr, Element element, boolean isBinaryOperator, boolean isUnaryOperator, boolean isKeyWordConstant) {
         this.tokenStr = tokenStr;
         this.element = element;
         this.isBinaryOperator = isBinaryOperator;
         this.isUnaryOperator = isUnaryOperator;
+        this.isKeyWordConstant = isKeyWordConstant;
     }
 
     public String getToken() {
         return tokenStr;
     }
 
-    public void setToken(String tokenStr) {
-        this.tokenStr = tokenStr;
-    }
-
     public Element getTokenType() {
         return element;
-    }
-
-    public void setTokenType(Element element) {
-        this.element = element;
     }
 
     public boolean isBinaryOperator() {
         return isBinaryOperator;
     }
 
-    public void setBinaryOperator(boolean binaryOperator) {
-        isBinaryOperator = binaryOperator;
-    }
-
     public boolean isUnaryOperator() {
         return isUnaryOperator;
     }
 
-    public void setUnaryOperator(boolean unaryOperator) {
-        isUnaryOperator = unaryOperator;
+    public boolean isKeyWordConstant() {
+        return isKeyWordConstant;
     }
+
 }

@@ -1,10 +1,7 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Struct;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -12,26 +9,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Created by MuhammadUmair on 11/21/2016.
+ * Utility Class which provides static methods for tokenizing.
  */
 public class JackTokenizer {
-
-    /*public static HashMap<String,Element> lexicalElements = new HashMap<>();
-
-    static {
-        lexicalElements.put("class",Element.KEYWORD);lexicalElements.put("constructor",Element.KEYWORD);lexicalElements.put("function",Element.KEYWORD);
-        lexicalElements.put("method",Element.KEYWORD);lexicalElements.put("field",Element.KEYWORD);lexicalElements.put("static",Element.KEYWORD);
-        lexicalElements.put("var",Element.KEYWORD);lexicalElements.put("int",Element.KEYWORD);lexicalElements.put("char",Element.KEYWORD);
-        lexicalElements.put("boolean",Element.KEYWORD);lexicalElements.put("void",Element.KEYWORD);lexicalElements.put("true",Element.KEYWORD);
-        lexicalElements.put("false",Element.KEYWORD);lexicalElements.put("null",Element.KEYWORD);lexicalElements.put("this",Element.KEYWORD);
-        lexicalElements.put("let",Element.KEYWORD);lexicalElements.put("do",Element.KEYWORD);lexicalElements.put("if",Element.KEYWORD);
-        lexicalElements.put("else",Element.KEYWORD);lexicalElements.put("while",Element.KEYWORD);lexicalElements.put("return",Element.KEYWORD);
-        lexicalElements.put("{",Element.SYMBOL);lexicalElements.put("}",Element.SYMBOL);lexicalElements.put("(",Element.SYMBOL);lexicalElements.put(")",Element.SYMBOL);
-        lexicalElements.put("[",Element.SYMBOL);lexicalElements.put("]",Element.SYMBOL);lexicalElements.put(".",Element.SYMBOL);lexicalElements.put(",",Element.SYMBOL);
-        lexicalElements.put(";",Element.SYMBOL);lexicalElements.put("+",Element.SYMBOL);lexicalElements.put("-",Element.SYMBOL);lexicalElements.put("*",Element.SYMBOL);
-        lexicalElements.put("/",Element.SYMBOL);lexicalElements.put("&",Element.SYMBOL);lexicalElements.put("|",Element.SYMBOL);lexicalElements.put("<",Element.SYMBOL);
-        lexicalElements.put(">",Element.SYMBOL);lexicalElements.put("=",Element.SYMBOL);lexicalElements.put("~",Element.SYMBOL);
-    }*/
 
     /**
      * Tokenizes the input file into list of Tokens
@@ -59,14 +39,20 @@ public class JackTokenizer {
                     Element element;
                     boolean isBinaryOperator = false;
                     boolean isUnaryOperator = false;
+                    boolean isKeywordConstant = false;
 
-                    if(token.matches(keywordPattern))
+                    if(token.matches(keywordPattern)){
                         element = Element.KEYWORD;
+                        if(token.matches("[true|false|null|this]"))
+                            isKeywordConstant = true;
+                    }
+
                     else if(token.matches(symbolPattern)){
                         element = Element.SYMBOL;
                         if(token.matches("[\\+\\-\\*\\/\\&\\|\\<\\>\\=]"))
                             isBinaryOperator = true;
-                        else if (token.matches("[\\-\\~]"))
+
+                        if (token.matches("[\\-\\~]"))
                             isUnaryOperator = true;
                     }
                     else if(token.matches(integerPattern))
@@ -78,7 +64,7 @@ public class JackTokenizer {
                     else
                         element = Element.IDENTIFIER;
 
-                    tokens.add(new Token(token, element, isBinaryOperator, isUnaryOperator));
+                    tokens.add(new Token(token, element, isBinaryOperator, isUnaryOperator, isKeywordConstant));
                 }
             }
         }catch (IOException ex) {
@@ -93,7 +79,7 @@ public class JackTokenizer {
      * @return String List of XML Tokens
      */
     public static List<String> getXMLTokens(List<Token> tokens){
-        List<String> xmlTokens = new ArrayList();
+        List<String> xmlTokens = new ArrayList<>();
         xmlTokens.add("<tokens>");
         tokens.forEach(token -> xmlTokens.add(getXMLToken(token)));
         xmlTokens.add("</tokens>");
@@ -109,14 +95,20 @@ public class JackTokenizer {
         String tokenType = token.getTokenType().getDescription();
         String tokenStr = token.getToken();
 
-        if(tokenStr.equals("<"))
-            tokenStr = "&lt;";
-        else if (tokenStr.equals(">"))
-            tokenStr = "&gt;";
-        else if (tokenStr.equals("\""))
-            tokenStr = "&quot;";
-        else if (tokenStr.equals("&"))
-            tokenStr = "&amp;";
+        switch (tokenStr) {
+            case "<":
+                tokenStr = "&lt;";
+                break;
+            case ">":
+                tokenStr = "&gt;";
+                break;
+            case "\"":
+                tokenStr = "&quot;";
+                break;
+            case "&":
+                tokenStr = "&amp;";
+                break;
+        }
 
         return ("<" + tokenType + "> " + tokenStr + " </" + tokenType + ">");
     }
@@ -126,7 +118,7 @@ public class JackTokenizer {
      * @param input stream which contains all the lines of the file
      * @return stream with removed comments
      */
-    public static Stream<String> removeComments(Stream<String> input){
+    private static Stream<String> removeComments(Stream<String> input){
         return input.filter(a -> !a.trim().startsWith("//"))
                 .filter(a -> !a.trim().startsWith("/**"))
                 .filter(a -> !a.trim().startsWith("*"))

@@ -1,10 +1,10 @@
 /**
- * Created by MuhammadUmair on 11/23/2016.
+ * Enum for types of lexical elements
  */
 public enum Element {
     KEYWORD("keyword"), SYMBOL("symbol"), INTEGER_CONSTANT("integerConstant"), STRING_CONSTANT("stringConstant"), IDENTIFIER("identifier");
 
-    private String description;
+    private final String description;
 
     Element(String description) {
         this.description = description;

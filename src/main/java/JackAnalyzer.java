@@ -29,9 +29,9 @@ public class JackAnalyzer {
                     Path outputFilePath = inputFilePath.resolveSibling(inputFilePath.getFileName().toString()
                             .substring(0,inputFilePath.getFileName().toString().lastIndexOf(".")) + ".xml");
 
-                    List<Token> tokens = JackTokenizer.tokenize(inputFilePath);
-                    Files.write(outputFilePathTokens, JackTokenizer.getXMLTokens(tokens), Charset.defaultCharset());//Output Tokens
-                    Files.write(outputFilePath, CompilationEngine.compileClass(tokens), Charset.defaultCharset());//Output Compiled XML
+                    List<Token> tokens = JackTokenizer.tokenize(inputFilePath);//Produces tokenized List
+                    Files.write(outputFilePathTokens, JackTokenizer.getXMLTokens(tokens), Charset.defaultCharset());//Outputs Tokens in XML
+                    Files.write(outputFilePath, CompilationEngine.compileClass(tokens), Charset.defaultCharset());//Outputs Compiled XML
 
                 }
             }catch(IOException ex){
