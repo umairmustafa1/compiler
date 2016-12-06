@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 public class JackTokenizer {
 
     /**
-     * Tokenizes the input file into list of Tokens
+     * Tokenize the input file into list of Tokens
      * @param inputFilePath Path of input file
      * @return List of Tokens
      */
@@ -71,19 +71,6 @@ public class JackTokenizer {
             System.out.println("No such file exists : " + inputFilePath);
         }
         return tokens;
-    }
-
-    /**
-     * Provides all the tokens in XML format for a given list of tokens
-     * @param tokens list of tokens
-     * @return String List of XML Tokens
-     */
-    public static List<String> getXMLTokens(List<Token> tokens){
-        List<String> xmlTokens = new ArrayList<>();
-        xmlTokens.add("<tokens>");
-        tokens.forEach(token -> xmlTokens.add(getXMLToken(token)));
-        xmlTokens.add("</tokens>");
-        return xmlTokens;
     }
 
     /**

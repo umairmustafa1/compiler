@@ -6,12 +6,12 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class JackAnalyzer {
+public class JackCompiler {
 
     public static void main(String[] args) {
 
         if(args.length != 1){
-            System.out.println("Usage : java JackAnalyzer \"[Dir Path]\"");
+            System.out.println("Usage : java JackCompiler \"[Dir Path]\"");
         }
         else{
             Path inputDirPath = Paths.get(args[0]);
@@ -23,16 +23,11 @@ public class JackAnalyzer {
                     .collect(Collectors.toList());
 
                 for (Path inputFilePath : inputFilePaths) {
-                    Path outputFilePathTokens = inputFilePath.resolveSibling(inputFilePath.getFileName().toString()
-                            .substring(0,inputFilePath.getFileName().toString().lastIndexOf(".")) + "T.xml");
-
                     Path outputFilePath = inputFilePath.resolveSibling(inputFilePath.getFileName().toString()
-                            .substring(0,inputFilePath.getFileName().toString().lastIndexOf(".")) + ".xml");
+                            .substring(0,inputFilePath.getFileName().toString().lastIndexOf(".")) + ".vm");
 
-                    List<Token> tokens = JackTokenizer.tokenize(inputFilePath);//Produces tokenized List
-                    Files.write(outputFilePathTokens, JackTokenizer.getXMLTokens(tokens), Charset.defaultCharset());//Outputs Tokens in XML
-                    Files.write(outputFilePath, CompilationEngine.compileClass(tokens), Charset.defaultCharset());//Outputs Compiled XML
-
+                    List<Token> tokens = JackTokenizer.tokenize(inputFilePath);//Produces tokenize List
+                    Files.write(outputFilePath, CompilationEngine.compileClass(tokens), Charset.defaultCharset());//Outputs Compiled VM File
                 }
             }catch(IOException ex){
                 System.out.println("No such directory exists : " + inputDirPath);
