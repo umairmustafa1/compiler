@@ -23,7 +23,9 @@ public class JackTokenizer {
         List<Token> tokens = new ArrayList<>();
 
         try(Stream<String> lines = Files.lines(inputFilePath)){
-            String keywordPattern = "class|constructor|function|method|field|static|var|int|char|boolean|void|true|false|null|this|let|do|if|else|while|return";
+            String keywordPattern = "\\bclass\\b|\\bconstructor\\b|\\bfunction\\b|\\bmethod\\b|\\bfield\\b|\\bstatic\\b|\\bvar\\b|" +
+                    "\\bint\\b|\\bchar\\b|\\bboolean\\b|\\bvoid\\b|\\btrue\\b|\\bfalse\\b|\\bnull\\b|\\bthis\\b|\\blet\\b|" +
+                    "\\bdo\\b|\\bif\\b|\\belse\\b|\\bwhile\\b|\\breturn\\b";
             String symbolPattern = "[\\{\\}\\(\\)\\[\\]\\.\\,\\;\\+\\-\\*\\/\\&\\|\\<\\>\\=\\~]";
             String integerPattern = "[0-9]+";
             String stringPattern = "\"[^\"\n]*\"";
@@ -43,7 +45,7 @@ public class JackTokenizer {
 
                     if(token.matches(keywordPattern)){
                         element = Element.KEYWORD;
-                        if(token.matches("[true|false|null|this]"))
+                        if(token.matches("true|false|null|this"))
                             isKeywordConstant = true;
                     }
 
@@ -71,33 +73,6 @@ public class JackTokenizer {
             System.out.println("No such file exists : " + inputFilePath);
         }
         return tokens;
-    }
-
-    /**
-     * Generates XML form of the token
-     * @param token to be converted
-     * @return XML format of token
-     */
-    public static String getXMLToken(Token token){
-        String tokenType = token.getTokenType().getDescription();
-        String tokenStr = token.getToken();
-
-        switch (tokenStr) {
-            case "<":
-                tokenStr = "&lt;";
-                break;
-            case ">":
-                tokenStr = "&gt;";
-                break;
-            case "\"":
-                tokenStr = "&quot;";
-                break;
-            case "&":
-                tokenStr = "&amp;";
-                break;
-        }
-
-        return ("<" + tokenType + "> " + tokenStr + " </" + tokenType + ">");
     }
 
     /**

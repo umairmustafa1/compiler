@@ -10,7 +10,4 @@ public enum Element {
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
 }

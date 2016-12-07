@@ -4,8 +4,8 @@ import java.util.Hashtable;
  * Symbol table to store and manipulate identifiers
  */
 public class SymbolTable {
-    private Hashtable<String, Identifier> classScope;
-    private Hashtable<String, Identifier> subroutineScope;
+    private final Hashtable<String, Identifier> classScope;
+    private final Hashtable<String, Identifier> subroutineScope;
     private int staticCounter;
     private int fieldCounter;
     private int argumentCounter;
@@ -24,22 +24,21 @@ public class SymbolTable {
         subroutineScope.clear();
         argumentCounter = 0;
         localCounter = 0;
-
     }
 
     public void define(String name, String type, IdentifierKind kind){
         switch (kind){
             case STATIC :
-                classScope.put(name, new Identifier(name, type, kind, staticCounter++));
+                classScope.put(name, new Identifier(type, kind, staticCounter++));
                 break;
             case FIELD:
-                classScope.put(name, new Identifier(name, type, kind, fieldCounter++));
+                classScope.put(name, new Identifier(type, kind, fieldCounter++));
                 break;
             case ARG:
-                subroutineScope.put(name, new Identifier(name, type, kind, argumentCounter++));
+                subroutineScope.put(name, new Identifier(type, kind, argumentCounter++));
                 break;
             case VAR:
-                subroutineScope.put(name, new Identifier(name, type, kind, localCounter++));
+                subroutineScope.put(name, new Identifier(type, kind, localCounter++));
                 break;
         }
     }
@@ -47,13 +46,13 @@ public class SymbolTable {
     public int varCount(IdentifierKind kind){
         switch (kind){
             case STATIC :
-                return staticCounter + 1;
+                return staticCounter;
             case FIELD:
-                return fieldCounter + 1;
+                return fieldCounter;
             case ARG:
-                return argumentCounter + 1;
+                return argumentCounter;
             case VAR:
-                return localCounter + 1;
+                return localCounter;
             default:
                 return 0;
         }

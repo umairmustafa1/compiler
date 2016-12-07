@@ -6,31 +6,40 @@ import java.util.List;
  */
 public class CompilationEngine {
 
+    private static List<String> compiledVM;
+    private static SymbolTable symbolTable;
+    private static VMWriter vmWriter;
+    private static String className;
+    private static List<Token> tokens;
+    private static int counter;
+
     /**
      * Method for compilation of a class
-     * @param tokens List of tokens which needs to be compiled
-     * @return List of XML compiled string tokens
+     * @param incomingTokens List of tokens which needs to be compiled
+     * @return List of vm commands
      */
-    public static List<String> compileClass(List<Token> tokens){
-        List<String> compiledVM = new ArrayList<>();
-        SymbolTable symbolTable = new SymbolTable();
-        VMWriter vmWriter = new VMWriter();
+    public static List<String> compileClass(List<Token> incomingTokens){
+        compiledVM = new ArrayList<>();
+        symbolTable = new SymbolTable();
+        vmWriter = new VMWriter();
+        tokens = incomingTokens;
+        counter = 0;
 
         tokens.remove(0);//class
-        String className = tokens.remove(0).getToken();//className
+        className = tokens.remove(0).getToken();//className
         tokens.remove(0);//{
 
         while(tokens.get(0).getToken().equals("static") || tokens.get(0).getToken().equals("field"))
-            compileClassVarDec(tokens, symbolTable);
+            compileClassVarDec();
 
         while(tokens.get(0).getToken().equals("constructor") || tokens.get(0).getToken().equals("function") || tokens.get(0).getToken().equals("method"))
-            compileSubroutine(tokens, compiledVM, vmWriter, symbolTable, className);
+            compileSubroutine();
 
-        compiledVM.add(JackTokenizer.getXMLToken(tokens.remove(0)));//}
+        tokens.remove(0);//}
         return compiledVM;
     }
 
-    private static void compileClassVarDec(List<Token> tokens, SymbolTable symbolTable){
+    private static void compileClassVarDec(){
         String kind = tokens.remove(0).getToken();//static | field
         String type = tokens.remove(0).getToken();//type
         String varName = tokens.remove(0).getToken();//varName
@@ -53,64 +62,59 @@ public class CompilationEngine {
         tokens.remove(0);//;
     }
 
-    private static void compileSubroutine(List<Token> tokens, List<String> compiledVM, VMWriter vmWriter,
-                                          SymbolTable symbolTable, String className){
+    private static void compileSubroutine(){
         String functionType = tokens.remove(0).getToken();//constructor | function | method
-        String returnType = tokens.remove(0).getToken();//void | type
+        tokens.remove(0);//void | type
         String functionName = tokens.remove(0).getToken();//subRoutineName
-        tokens.remove(0);//(
+        symbolTable.startSubroutine();
+
         if(functionType.equals("method"))
             symbolTable.define("this", className, IdentifierKind.ARG);
 
-        switch (functionType){
-            case "method" :
-                compiledVM.add(vmWriter.writeFunction(className + "." + functionName, compileParameterList(tokens, symbolTable) + 1));
-                compiledVM.add(vmWriter.writePush(Segment.ARG, 0));
-                compiledVM.add(vmWriter.writePop(Segment.POINTER, 0));
-                break;
-            case "constructor" :
-                compiledVM.add(vmWriter.writeFunction(className + "." + functionName, compileParameterList(tokens, symbolTable)));
-                compiledVM.add(vmWriter.writePush(Segment.CONST, symbolTable.varCount(IdentifierKind.FIELD)));
-                compiledVM.add(vmWriter.writeCall("Memory.alloc", 1));
-                compiledVM.add(vmWriter.writePop(Segment.POINTER, 0));
-                break;
-            case "function":
-                compiledVM.add(vmWriter.writeFunction(className + "." + functionName, compileParameterList(tokens, symbolTable)));
-                break;
-        }
-
+        tokens.remove(0);//(
+        compileParameterList();
         tokens.remove(0);//)
 
         tokens.remove(0);//{
         //varDec*
         while (tokens.get(0).getToken().equals("var")){
-            compileVarDec(tokens, symbolTable);
+            compileVarDec();
         }
-        //statements
-        compileStatements(tokens, compiledVM, vmWriter, symbolTable);
 
-        compiledVM.add(JackTokenizer.getXMLToken(tokens.remove(0)));//}
+        compiledVM.add(VMWriter.writeFunction(className + "." + functionName, symbolTable.varCount(IdentifierKind.VAR)));
+
+        switch (functionType){
+            case "method" :
+                compiledVM.add(VMWriter.writePush(Segment.ARG, 0));
+                compiledVM.add(VMWriter.writePop(Segment.POINTER, 0));
+                break;
+            case "constructor" :
+                compiledVM.add(VMWriter.writePush(Segment.CONST, symbolTable.varCount(IdentifierKind.FIELD)));
+                compiledVM.add(VMWriter.writeCall("Memory.alloc", 1));
+                compiledVM.add(VMWriter.writePop(Segment.POINTER, 0));
+                break;
+        }
+
+        //statements
+        compileStatements();
+        tokens.remove(0);//}
     }
 
-    private static int compileParameterList(List<Token> tokens, SymbolTable symbolTable){
-        int numOfParameters = 0;
+    private static void compileParameterList(){
         if(!tokens.get(0).getToken().equals(")")){
             String varType = tokens.remove(0).getToken();//type
             String varName = tokens.remove(0).getToken();//varName
-            numOfParameters++;
             symbolTable.define(varName, varType, IdentifierKind.ARG);
             while (tokens.get(0).getToken().equals(",")){
                 tokens.remove(0);//,
                 varType = tokens.remove(0).getToken();//type
                 varName = tokens.remove(0).getToken();//varName
-                numOfParameters++;
                 symbolTable.define(varName, varType, IdentifierKind.ARG);
             }
         }
-        return numOfParameters;
     }
 
-    private static void compileVarDec(List<Token> tokens, SymbolTable symbolTable){
+    private static void compileVarDec(){
         tokens.remove(0);//var
         String type = tokens.remove(0).getToken();//type
         String varName = tokens.remove(0).getToken();//varName
@@ -123,175 +127,203 @@ public class CompilationEngine {
         tokens.remove(0);//;
     }
 
-    private static void compileStatements(List<Token> tokens, List<String> compiledVM, VMWriter vmWriter,
-                                          SymbolTable symbolTable){
-        while(tokens.get(0).getToken().equals("let") || tokens.get(0).getToken().equals("if") || tokens.get(0).getToken().equals("while") || tokens.get(0).getToken().equals("do")
+    private static void compileStatements(){
+        while(tokens.get(0).getToken().equals("let") || tokens.get(0).getToken().equals("if") ||
+                tokens.get(0).getToken().equals("while") || tokens.get(0).getToken().equals("do")
                 || tokens.get(0).getToken().equals("return")){
             switch (tokens.get(0).getToken()){
-                case "let": compileLetStatement(tokens, compiledVM, vmWriter, symbolTable);
+                case "let": compileLetStatement();
                     break;
-                case "if": compileIf(tokens, compiledVM, vmWriter, symbolTable);
+                case "if": compileIf();
                     break;
-                case "while": compileWhile(tokens, compiledVM, vmWriter, symbolTable);
+                case "while": compileWhile();
                     break;
-                case "do": compileDoStatement(tokens, compiledVM, vmWriter, symbolTable);
+                case "do": compileDoStatement();
                     break;
-                case "return":compileReturnStatement(tokens, compiledVM, vmWriter, symbolTable);
+                case "return":compileReturnStatement();
                     break;
             }
         }
     }
 
-    private static void compileLetStatement(List<Token> tokens, List<String> compiledVM, VMWriter vmWriter,
-                                            SymbolTable symbolTable){
+    private static void compileLetStatement(){
         tokens.remove(0);//let
         String varName = tokens.remove(0).getToken();//varName
         boolean isArray = false;
         if(!tokens.get(0).getToken().equals("=")){
             isArray = true;
             tokens.remove(0);//[
-            compiledVM.add(vmWriter.writePush(getSegment(symbolTable.kindOf(varName)), symbolTable.indexOf(varName)));
-            compileExpression(tokens, compiledVM, vmWriter, symbolTable);
+            compiledVM.add(VMWriter.writePush(getSegment(symbolTable.kindOf(varName)), symbolTable.indexOf(varName)));
+            compileExpression();
             tokens.remove(0);//]
-            compiledVM.add(vmWriter.writeArithmetic(Command.ADD));
+            compiledVM.add(VMWriter.writeArithmetic(Command.ADD));
         }
         tokens.remove(0);//=
-        compileExpression(tokens, compiledVM, vmWriter, symbolTable);
+        compileExpression();
         tokens.remove(0);//;
 
         if (isArray){
-            compiledVM.add(vmWriter.writePop(Segment.TEMP,0));
-            compiledVM.add(vmWriter.writePop(Segment.POINTER,1));
-            compiledVM.add(vmWriter.writePush(Segment.TEMP,0));
-            compiledVM.add(vmWriter.writePop(Segment.THAT,0));
+            compiledVM.add(VMWriter.writePop(Segment.TEMP,0));
+            compiledVM.add(VMWriter.writePop(Segment.POINTER,1));
+            compiledVM.add(VMWriter.writePush(Segment.TEMP,0));
+            compiledVM.add(VMWriter.writePop(Segment.THAT,0));
         }else {
-            compiledVM.add(vmWriter.writePop(getSegment(symbolTable.kindOf(varName)), symbolTable.indexOf(varName)));
+            compiledVM.add(VMWriter.writePop(getSegment(symbolTable.kindOf(varName)), symbolTable.indexOf(varName)));
         }
     }
 
-    private static void compileDoStatement(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                           SymbolTable symbolTable){
+    private static void compileDoStatement(){
         tokens.remove(0);//do
-
-        if(tokens.get(1).getToken().equals(".")){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//className | varName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//.
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//subroutineName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-            compileExpressionList(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        }else{
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//subroutineName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-            compileExpressionList(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        }
-
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//;
+        compileSubroutineCall();
+        tokens.remove(0);//;
+        compiledVM.add(VMWriter.writePop(Segment.TEMP,0));
     }
 
-    private static void compileWhile(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                     SymbolTable symbolTable){
-        compiledXML.add("<whileStatement>");
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//while
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-        compileExpression(tokens, compiledXML, vmWriter, symbolTable);
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//{
-        compileStatements(tokens, compiledXML, vmWriter, symbolTable);
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//}
-        compiledXML.add("</whileStatement>");
+    private static void compileWhile(){
+        String continueLabel =  "whileEndLabel" + counter++;
+        String topLabel = "whileStartLabel" + counter++;
+
+        compiledVM.add(VMWriter.writeLabel(topLabel));
+        tokens.remove(0);//while
+        tokens.remove(0);//(
+        compileExpression();
+        tokens.remove(0);//)
+        compiledVM.add(VMWriter.writeArithmetic(Command.NOT));
+        compiledVM.add(VMWriter.writeIf(continueLabel));
+        tokens.remove(0);//{
+        compileStatements();
+        tokens.remove(0);//}
+        compiledVM.add(VMWriter.writeGoto(topLabel));
+        compiledVM.add(VMWriter.writeLabel(continueLabel));
     }
 
-    private static void compileIf(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                  SymbolTable symbolTable){
-        compiledXML.add("<ifStatement>");
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//if
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-        compileExpression(tokens, compiledXML, vmWriter, symbolTable);
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//{
-        compileStatements(tokens, compiledXML, vmWriter, symbolTable);
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//}
+    private static void compileIf(){
+        String elseLabel = "elseLabel" + counter++;
+        String endLabel = "ifEndLabel" + counter++;
+
+        tokens.remove(0);//if
+        tokens.remove(0);//(
+        compileExpression();
+        compiledVM.add(VMWriter.writeArithmetic(Command.NOT));
+        compiledVM.add(VMWriter.writeIf(elseLabel));
+        tokens.remove(0);//)
+        tokens.remove(0);//{
+        compileStatements();
+        tokens.remove(0);//}
+        compiledVM.add(VMWriter.writeGoto(endLabel));
+        compiledVM.add(VMWriter.writeLabel(elseLabel));
         if (tokens.get(0).getToken().equals("else")){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//else
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//{
-            compileStatements(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//}
+            tokens.remove(0);//else
+            tokens.remove(0);//{
+            compileStatements();
+            tokens.remove(0);//}
         }
-        compiledXML.add("</ifStatement>");
+        compiledVM.add(VMWriter.writeLabel(endLabel));
     }
 
-    private static void compileReturnStatement(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                               SymbolTable symbolTable){
-        compiledXML.add("<returnStatement>");
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//return
-        if(!tokens.get(0).getToken().equals(";"))
-            compileExpression(tokens, compiledXML, vmWriter, symbolTable);
-        compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//;
-        compiledXML.add("</returnStatement>");
+    private static void compileReturnStatement(){
+        tokens.remove(0);//return
+        if(tokens.get(0).getToken().equals(";"))
+            compiledVM.add(VMWriter.writePush(Segment.CONST, 0));
+        else
+            compileExpression();
+        tokens.remove(0);//;
+        compiledVM.add(VMWriter.writeReturn());
     }
 
-    private static void compileExpression(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                          SymbolTable symbolTable){
-        compiledXML.add("<expression>");
-        compileTerm(tokens, compiledXML, vmWriter, symbolTable);
+    private static void compileExpression(){
+        compileTerm();
         while(tokens.get(0).isBinaryOperator()){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//op
-            compileTerm(tokens, compiledXML, vmWriter, symbolTable);
+            String op = tokens.remove(0).getToken();//op
+            String opCmd = "";
+            switch (op){
+                case "+":opCmd = VMWriter.writeArithmetic(Command.ADD);break;
+                case "-":opCmd = VMWriter.writeArithmetic(Command.SUB);break;
+                case "*":opCmd = "call Math.multiply 2";break;
+                case "/":opCmd = "call Math.divide 2";break;
+                case "<":opCmd = VMWriter.writeArithmetic(Command.LT);break;
+                case ">":opCmd = VMWriter.writeArithmetic(Command.GT);break;
+                case "=":opCmd = VMWriter.writeArithmetic(Command.EQ);break;
+                case "&":opCmd = VMWriter.writeArithmetic(Command.AND);break;
+                case "|":opCmd = VMWriter.writeArithmetic(Command.OR);break;
+            }
+            compileTerm();
+            compiledVM.add(opCmd);
         }
-        compiledXML.add("</expression>");
     }
 
-    private static void compileTerm(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                    SymbolTable symbolTable){
-        compiledXML.add("<term>");
+    private static void compileTerm(){
+        if(tokens.get(0).getTokenType() == Element.IDENTIFIER){
+            if(tokens.get(1).getToken().equals("[")){
+                String identifier = tokens.remove(0).getToken();
+                compiledVM.add(VMWriter.writePush(getSegment(symbolTable.kindOf(identifier)),
+                        symbolTable.indexOf(identifier)));
+                tokens.remove(0);//[
+                compileExpression();
+                tokens.remove(0);//]
+                compiledVM.add(VMWriter.writeArithmetic(Command.ADD));
+                compiledVM.add(VMWriter.writePop(Segment.POINTER, 1));
+                compiledVM.add(VMWriter.writePush(Segment.THAT, 0));
+            }else if(tokens.get(1).getToken().equals("(") || tokens.get(1).getToken().equals(".")){
+                compileSubroutineCall();
+            }
+            else{
+                String varName = tokens.remove(0).getToken();//varName
+                compiledVM.add(VMWriter.writePush(getSegment(symbolTable.kindOf(varName)), symbolTable.indexOf(varName)));
+            }
+        }else {
+            if (tokens.get(0).isKeyWordConstant() || tokens.get(0).getTokenType() == Element.STRING_CONSTANT ||
+                    tokens.get(0).getTokenType() == Element.INTEGER_CONSTANT) {
+                Token token = tokens.remove(0);//integerConstant | stringConstant | keyWordConstant
 
-        if(tokens.get(0).isKeyWordConstant() || tokens.get(0).getTokenType().equals(Element.STRING_CONSTANT) ||
-                tokens.get(0).getTokenType().equals(Element.INTEGER_CONSTANT)){
-            tokens.remove(0);//integerConstant | stringConstant | keyWordConstant
-        }else if(tokens.get(0).isUnaryOperator()){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//unaryOp
-            compileTerm(tokens, compiledXML, vmWriter, symbolTable);
-        }else if(tokens.get(0).getToken().equals("(")){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-            compileExpression(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        }else if(tokens.get(1).getToken().equals("[")){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//varName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//[
-            compileExpression(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//]
-        }else if(tokens.get(1).getToken().equals("(")){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//subroutineName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-            compileExpressionList(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        }else if(tokens.get(1).getToken().equals(".")){
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//className | varName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//.
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//subroutineName
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//(
-            compileExpressionList(tokens, compiledXML, vmWriter, symbolTable);
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//)
-        }else{
-            compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//varName
-        }
+                if (token.isKeyWordConstant()) {
+                    if (token.getToken().equals("true")) {
+                        compiledVM.add(VMWriter.writePush(Segment.CONST, 0));
+                        compiledVM.add(VMWriter.writeArithmetic(Command.NOT));
+                    } else if (token.getToken().equals("false") || token.getToken().equals("null")) {
+                        compiledVM.add(VMWriter.writePush(Segment.CONST, 0));
+                    } else if (token.getToken().equals("this"))
+                        compiledVM.add(VMWriter.writePush(Segment.POINTER, 0));
+                } else if (token.getTokenType().equals(Element.STRING_CONSTANT)) {
+                    String str = token.getToken();
+                    compiledVM.add(VMWriter.writePush(Segment.CONST, str.length()));
+                    compiledVM.add(VMWriter.writeCall("String.new", 1));
+                    for (int i = 0; i < str.length(); i++) {
+                        compiledVM.add(VMWriter.writePush(Segment.CONST, (int) str.charAt(i)));
+                        compiledVM.add(VMWriter.writeCall("String.appendChar", 2));
+                    }
+                } else {
+                    compiledVM.add(VMWriter.writePush(Segment.CONST, Integer.parseInt(token.getToken())));
+                }
 
-        compiledXML.add("</term>");
-    }
+            } else if (tokens.get(0).getToken().equals("(")) {
+                tokens.remove(0);//(
+                compileExpression();
+                tokens.remove(0);//)
+            } else if (tokens.get(0).isUnaryOperator()) {
+                String symbol = tokens.remove(0).getToken();//unaryOp
+                compileTerm();
 
-    private static void compileExpressionList(List<Token> tokens, List<String> compiledXML, VMWriter vmWriter,
-                                              SymbolTable symbolTable){
-        compiledXML.add("<expressionList>");
-        if(!tokens.get(0).getToken().equals(")")){
-            compileExpression(tokens, compiledXML, vmWriter, symbolTable);
-            while(tokens.get(0).getToken().equals(",")){
-                compiledXML.add(JackTokenizer.getXMLToken(tokens.remove(0)));//,
-                compileExpression(tokens, compiledXML, vmWriter, symbolTable);
+                if (symbol.equals("-"))
+                    compiledVM.add(VMWriter.writeArithmetic(Command.NEG));
+                else
+                    compiledVM.add(VMWriter.writeArithmetic(Command.NOT));
             }
         }
-        compiledXML.add("</expressionList>");
+    }
+
+    private static int compileExpressionList(){
+        int nArgs = 0;
+        if(!tokens.get(0).getToken().equals(")")){
+            compileExpression();
+            nArgs++;
+            while(tokens.get(0).getToken().equals(",")){
+                tokens.remove(0);//,
+                compileExpression();
+                nArgs++;
+            }
+        }
+        return nArgs;
     }
 
     private static Segment getSegment(IdentifierKind kind){
@@ -301,6 +333,37 @@ public class CompilationEngine {
             case VAR:return Segment.LOCAL;
             case ARG:return Segment.ARG;
             default:return Segment.NONE;
+        }
+    }
+
+    private static void compileSubroutineCall(){
+        if (tokens.get(1).getToken().equals("(")){//TODO
+            String subroutineName = tokens.remove(0).getToken();//subroutineName
+            tokens.remove(0);//(
+            compiledVM.add(VMWriter.writePush(Segment.POINTER, 0));
+            int nArgs = compileExpressionList() + 1;
+            tokens.remove(0);//)
+            compiledVM.add(VMWriter.writeCall(className + '.' + subroutineName, nArgs));
+        }else if (tokens.get(1).getToken().equals(".")) {//TODO
+            String varName = tokens.remove(0).getToken();//className | varName
+            tokens.remove(0);//.
+            String subroutineName = tokens.remove(0).getToken();//subroutineName
+
+            String type = symbolTable.typeOf(varName);
+            int nArgs = 0;
+
+            String methodName = varName + "." + subroutineName;
+
+            if (!type.equals("")){
+                nArgs = 1;
+                compiledVM.add(VMWriter.writePush(getSegment(symbolTable.kindOf(varName)), symbolTable.indexOf(varName)));
+                methodName = type + "." + subroutineName;
+            }
+
+            tokens.remove(0);//(
+            nArgs += compileExpressionList();
+            compiledVM.add(VMWriter.writeCall(methodName, nArgs));
+            tokens.remove(0);//)
         }
     }
 

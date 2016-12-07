@@ -4,7 +4,7 @@
 public enum Segment {
     CONST("constant"), ARG("argument"), LOCAL("local"), STATIC("static"), THIS("this"), THAT("that"), POINTER("pointer"), TEMP("temp"), NONE("none");
 
-    private String description;
+    private final String description;
 
     Segment(String description){
         this.description = description;
